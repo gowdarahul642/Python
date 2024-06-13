@@ -1,0 +1,124 @@
+from moviepy.editor import VideoFileClip, ImageClip, CompositeVideoClip
+import tkinter as tk
+from tkinter import filedialog, messagebox
+import os
+
+# Create the main GUI window
+window = tk.Tk()
+window.title("Video Processing")
+window.geometry("400x550")
+
+# Reel size
+reel_width = 1080
+reel_height = 1920
+
+def process_videos():
+    # Get the folder path containing the videos
+    folder_path = folder_path_entry.get()
+
+    # Get the output folder path for storing the processed videos
+    output_folder_path = output_folder_path_entry.get()
+
+    # Get the logo path
+    logo_path = logo_path_entry.get()
+
+    # Get the logo position
+    logo_position = logo_position_var.get()
+
+    # Create the output folder if it doesn't exist
+    if not os.path.exists(output_folder_path):
+        os.makedirs(output_folder_path)
+
+    # Load the logo image as an ImageClip and set its position, duration, and opacity
+    logo = ImageClip(logo_path).set_opacity(1)
+
+    for filename in os.listdir(folder_path):
+        if filename.endswith(".mp4"):
+            # Load the video clip
+            video_path = os.path.join(folder_path, filename)
+            video_clip = VideoFileClip(video_path)
+
+            # Set the duration of the logo clip to match the video duration
+            logo_duration = video_clip.duration
+            logo = logo.set_duration(logo_duration)
+
+            # Overlay the logo on the video clip
+            if logo_position == "Top Left":
+                final_clip = CompositeVideoClip([video_clip, logo.set_position(("left", "top"))], size=video_clip.size)
+            elif logo_position == "Top Right":
+                final_clip = CompositeVideoClip([video_clip, logo.set_position(("right", "top"))], size=video_clip.size)
+            elif logo_position == "Bottom Left":
+                final_clip = CompositeVideoClip([video_clip, logo.set_position(("left", "bottom"))], size=video_clip.size)
+            elif logo_position == "Bottom Right":
+                final_clip = CompositeVideoClip([video_clip, logo.set_position(("right", "bottom"))], size=video_clip.size)
+
+            # Extract the audio from the original video
+            audio_clip = video_clip.audio
+
+            # Set the audio for the final video clip
+            final_clip.audio = audio_clip
+
+            # Write the final video clip to a file
+            output_filename = os.path.join(output_folder_path, filename)
+            final_clip.write_videofile(output_filename)
+
+    # Show a message box when processing is complete
+    messagebox.showinfo("Processing Complete", "All videos have been processed successfully!")
+
+# Create a label and entry widget for selecting the input folder
+folder_path_label = tk.Label(window, text="Input Folder:")
+folder_path_label.pack()
+folder_path_entry = tk.Entry(window)
+folder_path_entry.pack()
+
+# Create a button for browsing the input folder
+def browse_input_folder():
+    folder_path = filedialog.askdirectory()
+    folder_path_entry.delete(0, tk.END)
+    folder_path_entry.insert(0, folder_path)
+
+browse_input_folder_button = tk.Button(window, text="Browse", command=browse_input_folder)
+browse_input_folder_button.pack()
+
+# Create a label and entry widget for selecting the output folder
+output_folder_path_label = tk.Label(window, text="Output Folder:")
+output_folder_path_label.pack()
+output_folder_path_entry = tk.Entry(window)
+output_folder_path_entry.pack()
+
+# Create a button for browsing the output folder
+def browse_output_folder():
+    output_folder_path = filedialog.askdirectory()
+    output_folder_path_entry.delete(0, tk.END)
+    output_folder_path_entry.insert(0, output_folder_path)
+
+browse_output_folder_button = tk.Button(window, text="Browse", command=browse_output_folder)
+browse_output_folder_button.pack()
+
+# Create a label and entry widget for selecting the logo image file
+logo_path_label = tk.Label(window, text="Logo File:")
+logo_path_label.pack()
+logo_path_entry = tk.Entry(window)
+logo_path_entry.pack()
+
+# Create a button for browsing the logo image file
+def browse_logo_file():
+    logo_path = filedialog.askopenfilename(filetypes=[("PNG files", "*.png"), ("JPEG files", "*.jpg")])
+    logo_path_entry.delete(0, tk.END)
+    logo_path_entry.insert(0, logo_path)
+
+browse_logo_file_button = tk.Button(window, text="Browse", command=browse_logo_file)
+browse_logo_file_button.pack()
+
+# Create a label and dropdown menu for selecting the logo position
+logo_position_label = tk.Label(window, text="Logo Position:")
+logo_position_label.pack()
+logo_position_var = tk.StringVar(value="Top Left")
+logo_position_dropdown = tk.OptionMenu(window, logo_position_var, "Top Left", "Top Right", "Bottom Left", "Bottom Right")
+logo_position_dropdown.pack()
+
+# Create a button for processing the videos
+process_videos_button = tk.Button(window, text="Process Videos", command=process_videos)
+process_videos_button.pack()
+
+window.mainloop()
