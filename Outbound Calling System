@@ -1,0 +1,442 @@
+import tkinter as tk
+from tkinter import filedialog
+from tkinter import ttk
+from tkinter import messagebox
+import subprocess
+import pytesseract
+import time
+import io
+import pandas as pd
+from PIL import Image, ImageFilter, ImageOps,ImageTk
+import pygame
+import os
+import wave
+import struct
+import math
+from tkinter import PhotoImage
+
+
+class PhoneCallMonitorGUI:
+    def __init__(self, root):
+        self.root = root
+        self.root.title("Phone Call Monitor")
+        self.root.geometry("800x600")
+
+        self.adb_path_var = tk.StringVar()
+        self.adb_path_var.set(r'C:\android\adb.exe')
+        self.target_text_var = tk.StringVar()
+        self.target_text_var.set('dialling')
+        self.max_monitor_duration_var = tk.StringVar()
+        self.max_monitor_duration_var.set('300')
+        self.iteration_delay_var = tk.StringVar()
+        self.iteration_delay_var.set('2')
+        self.audio_file_path_var = tk.StringVar()
+        self.phone_numbers_file_var = tk.StringVar()
+        # self.root.configure(bg="#808080")
+        
+        self.add_logo()
+        
+
+        # Variable to track whether the audio has been played
+        self.audio_played = False
+
+        self.create_widgets()
+
+    def create_widgets(self):
+        # ADB Path
+        adb_label = ttk.Label(self.root, text="ADB Executable Path:")
+        adb_label.grid(row=1, column=0, padx=10, pady=5, sticky=tk.W)
+        adb_entry = ttk.Entry(self.root, textvariable=self.adb_path_var, width=50)
+        adb_entry.grid(row=1, column=1, padx=10, pady=5, sticky=tk.W)
+        adb_button = ttk.Button(self.root, text="Browse", command=self.browse_adb_path)
+        adb_button.grid(row=1, column=2, padx=5, pady=5, sticky=tk.W)
+
+        # # Target Text
+        # target_text_label = ttk.Label(self.root, text="Target Text:")
+        # target_text_label.grid(row=1, column=0, padx=10, pady=5, sticky=tk.W)
+        # target_text_entry = ttk.Entry(self.root, textvariable=self.target_text_var, width=50)
+        # target_text_entry.grid(row=1, column=1, padx=10, pady=5, sticky=tk.W)
+
+        # Max Monitor Duration
+        max_duration_label = ttk.Label(self.root, text="Max Monitor Duration (seconds):")
+        max_duration_label.grid(row=2, column=0, padx=10, pady=5, sticky=tk.W)
+        max_duration_entry = ttk.Entry(self.root, textvariable=self.max_monitor_duration_var, width=50)
+        max_duration_entry.grid(row=2, column=1, padx=10, pady=5, sticky=tk.W)
+
+        # Iteration Delay
+        iteration_delay_label = ttk.Label(self.root, text="Iteration Delay (seconds):")
+        iteration_delay_label.grid(row=3, column=0, padx=10, pady=5, sticky=tk.W)
+        iteration_delay_entry = ttk.Entry(self.root, textvariable=self.iteration_delay_var, width=50)
+        iteration_delay_entry.grid(row=3, column=1, padx=10, pady=5, sticky=tk.W)
+
+        # Audio File Path
+        audio_file_label = ttk.Label(self.root, text="Audio File Path:")
+        audio_file_label.grid(row=4, column=0, padx=10, pady=5, sticky=tk.W)
+        audio_file_entry = ttk.Entry(self.root, textvariable=self.audio_file_path_var, width=50)
+        audio_file_entry.grid(row=4, column=1, padx=10, pady=5, sticky=tk.W)
+        audio_file_button = ttk.Button(self.root, text="Browse", command=self.browse_audio_file)
+        audio_file_button.grid(row=4, column=2, padx=5, pady=5, sticky=tk.W)
+
+        # Phone Numbers File Path
+        phone_numbers_label = ttk.Label(self.root, text="Phone Numbers Excel File:")
+        phone_numbers_label.grid(row=5, column=0, padx=10, pady=5, sticky=tk.W)
+        phone_numbers_entry = ttk.Entry(self.root, textvariable=self.phone_numbers_file_var, width=50)
+        phone_numbers_entry.grid(row=5, column=1, padx=10, pady=5, sticky=tk.W)
+        phone_numbers_button = ttk.Button(self.root, text="Browse", command=self.browse_phone_numbers_file)
+        phone_numbers_button.grid(row=5, column=2, padx=5, pady=5, sticky=tk.W)
+
+        # Start Button
+        start_button = ttk.Button(self.root, text="Start Monitoring", command=self.start_monitoring)
+        start_button.grid(row=6, column=0, columnspan=3, pady=10)
+
+        self.additional_button = ttk.Button(self.root, text="DTMF", command=self.additional_action, state=tk.DISABLED)
+        self.additional_button.grid(row=7, column=0, columnspan=3, pady=10)
+
+        self.redirect_button = ttk.Button(self.root, text="direct to DTMF 1 Tone Excel", command=self.redirect_to_dtmf1_excel,state=tk.DISABLED)
+        self.redirect_button.grid(row=8, column=0, columnspan=3, pady=10)
+
+        self.redirect_button2 = ttk.Button(self.root, text="direct to DTMF 2 Tone Excel", command=self.redirect_to_dtmf1_excel1,state=tk.DISABLED)
+        self.redirect_button2.grid(row=9, column=0, columnspan=3, pady=10)
+    def add_logo(self):
+        try:
+            logo_path = "C:\\Users\\Rahul Gowda\\Downloads\\softscribble_logo.png"  # Replace with the actual path to your logo file
+            original_logo = Image.open(logo_path)
+
+            # Resize the logo
+            resized_logo = original_logo.resize((40, 40), Image.ANTIALIAS)
+
+            # Convert the resized logo to PhotoImage
+            logo_image = ImageTk.PhotoImage(resized_logo)
+
+            # Create a label for the logo and display it
+            logo_label = tk.Label(self.root, image=logo_image, anchor=tk.CENTER)
+            logo_label.image = logo_image  # Keep a reference to avoid garbage collection
+            logo_label.grid(row=0, column=0, rowspan=1, padx=0, pady=0)  # Adjust row, column, rowspan, padx, and pady as needed
+        except Exception as e:
+            print(f"Error adding logo: {e}")
+    def center_window(self):
+        screen_width = self.root.winfo_screenwidth()
+        screen_height = self.root.winfo_screenheight()
+
+        x_position = int((screen_width - 600) / 2)
+        y_position = int((screen_height - 400) / 2)
+
+        self.root.geometry(f"600x400+{x_position}+{y_position}")
+
+
+    def browse_adb_path(self):
+        path = filedialog.askopenfilename(filetypes=[("ADB Executable", "*.exe")])
+        if path:
+            self.adb_path_var.set(path)
+
+    def browse_audio_file(self):
+        path = filedialog.askopenfilename(filetypes=[("Audio Files", "*.mp3;*.wav")])
+        if path:
+            self.audio_file_path_var.set(path)
+
+    def browse_phone_numbers_file(self):
+        path = filedialog.askopenfilename(filetypes=[("Excel Files", "*.xlsx;*.xls")])
+        if path:
+            self.phone_numbers_file_var.set(path)
+
+    def convert_mp3_files_to_wav(self, input_folder, output_folder, ffmpeg_path):
+        os.makedirs(output_folder, exist_ok=True)
+        for filename in os.listdir(input_folder):
+            if filename.endswith('.mp3'):
+                mp3_file_path = os.path.join(input_folder, filename)
+                wav_output_file = os.path.join(output_folder, os.path.splitext(filename)[0] + '.wav')
+                try:
+                    subprocess.run([ffmpeg_path, '-i', mp3_file_path, wav_output_file], check=True, capture_output=True, text=True)
+                    print(f"Converted {mp3_file_path} to {wav_output_file}")
+                except subprocess.CalledProcessError as e:
+                    print(f"Error converting {mp3_file_path} to WAV: {e.stderr}")
+
+    def make_phone_call(self, adb_executable, number_to_call):
+        try:
+            call_command = f'{adb_executable} shell am start -a android.intent.action.CALL -d tel:{number_to_call}'
+            subprocess.run(call_command, shell=True, check=True)
+            print(f"Calling {number_to_call}...")
+            time.sleep(1)
+        except subprocess.CalledProcessError as e:
+            print(f"Error making phone call: {e}")
+
+    def capture_phone_screenshot(self, adb_executable):
+        try:
+            screenshot_data = subprocess.check_output([adb_executable, 'exec-out', 'screencap', '-p'])
+            screenshot = Image.open(io.BytesIO(screenshot_data))
+            print("Captured screenshot.")
+            return screenshot
+        except subprocess.CalledProcessError as e:
+            print(f"Error capturing screenshot: {e}")
+            return None
+
+    def preprocess_image(self, image):
+        grayscale_image = ImageOps.grayscale(image)
+        threshold_value = 100
+        binary_image = grayscale_image.point(lambda p: p > threshold_value and 255)
+        blurred_image = binary_image.filter(ImageFilter.GaussianBlur(radius=2))
+        return blurred_image
+
+    def enhance_text_detection(self, image):
+        preprocessed_image = self.preprocess_image(image)
+        extracted_text = pytesseract.image_to_string(preprocessed_image, config='--psm 6')
+        return extracted_text
+
+    def play_audio(self, audio_file_path):
+        if not self.audio_played:
+            pygame.mixer.init()
+            pygame.mixer.music.load(audio_file_path)
+            pygame.mixer.music.play()
+            self.audio_played = True
+
+    def stop_audio(self):
+        if self.audio_played:
+            pygame.mixer.music.stop()
+            print("Stopping the call.")
+            subprocess.run([self.adb_path_var.get(), 'shell', 'input', 'keyevent', '6'])
+            self.audio_played = False
+
+    def start_monitoring(self):
+        adb_path = self.adb_path_var.get()
+        target_text = self.target_text_var.get()
+        max_monitor_duration = int(self.max_monitor_duration_var.get())
+        iteration_delay = int(self.iteration_delay_var.get())
+        audio_file_path = self.audio_file_path_var.get()
+
+        phone_numbers_file = self.phone_numbers_file_var.get()
+        try:
+            df = pd.read_excel(phone_numbers_file)
+            phone_numbers = df['Phone Numbers'].tolist()
+        except Exception as e:
+            messagebox.showerror("Error", f"Error reading phone numbers file: {e}")
+            return
+
+        self.audio_played = False
+        for phone_number in phone_numbers:
+            self.make_phone_call(adb_path, phone_number)
+            start_time = time.time()
+            start_time_audio = start_time 
+            self.audio_played = False
+            time.sleep(2)
+
+            while time.time() - start_time < max_monitor_duration:
+                screenshot = self.capture_phone_screenshot(adb_path)
+
+                if screenshot:
+                    extracted_text = self.enhance_text_detection(screenshot)
+
+                    if any(text1 in extracted_text.lower() for text1 in ["ringing","dialling","calling"]):
+                        print(f"Target text '{target_text}' is present in the screenshot.")
+                    else:
+                        print(f"Target text '{target_text}' is not present in the screenshot.")
+                        self.play_audio(audio_file_path)
+                        if time.time() - start_time_audio > 30:
+                            print("Automatically cutting the call after 10 seconds.")
+                            self.stop_audio()
+                            time.sleep(3)
+                            break
+
+                    if any(text in extracted_text.lower() for text in ["recents","call ended", "line busy", "hung up"]):
+                        print("Call ended. Moving to the next phone number.")
+                        self.stop_audio()
+                        time.sleep(3)
+                        break
+
+                time.sleep(iteration_delay)
+        self.additional_button["state"] = tk.NORMAL
+        self.redirect_button["state"] = tk.NORMAL
+        self.redirect_button2["state"]=tk.NORMAL
+        messagebox.showinfo("Information", "Phone Calling is done!!")
+
+    class pygoertzel_dtmf:
+        def __init__(self, samplerate):
+
+            self.samplerate = samplerate
+        
+            self.goertzel_freq = [1209.0,1336.0,1477.0,1633.0,697.0,770.0,852.0,941.0]
+            self.s_prev = {}
+            self.s_prev2 = {}
+            self.totalpower = {}
+            self.N = {}
+            self.coeff = {}
+
+        # create goertzel parameters for each frequency so that 
+        # all the frequencies are analyzed in parallel
+            for k in self.goertzel_freq:
+              self.s_prev[k] = 0.0
+              self.s_prev2[k] = 0.0
+              self.totalpower[k] = 0.0
+              self.N[k] = 0.0
+            
+              normalizedfreq = k / self.samplerate
+              self.coeff[k] = 2.0*math.cos(2.0 * math.pi * normalizedfreq)
+
+            # ... (unchanged code)
+
+        def __get_number(self, freqs):
+         hi = [1209.0, 1336.0, 1477.0, 1633.0]
+         lo = [697.0, 770.0, 852.0, 941.0]
+
+        # get hi freq
+         hifreq = 0.0
+         hifreq_v = 0.0
+         for f in hi:
+            if freqs[f] > hifreq_v:
+                hifreq_v = freqs[f]
+                hifreq = f
+
+        # get lo freq
+         lofreq = 0.0
+         lofreq_v = 0.0
+         for f in lo:
+            if freqs[f] > lofreq_v:
+                lofreq_v = freqs[f]
+                lofreq = f
+
+         if lofreq == 697.0:
+            if hifreq == 1209.0:
+                return "1"
+            elif hifreq == 1336.0:
+                return "2"
+            
+          # Return None for frequencies other than '1' and '2
+        def run(self, sample):
+         freqs = {}
+         for freq in self.goertzel_freq:
+            s = sample + (self.coeff[freq] * self.s_prev[freq]) - self.s_prev2[freq]
+            self.s_prev2[freq] = self.s_prev[freq]
+            self.s_prev[freq] = s
+            self.N[freq]+=1
+            power = (self.s_prev2[freq]*self.s_prev2[freq]) + (self.s_prev[freq]*self.s_prev[freq]) - (self.coeff[freq]*self.s_prev[freq]*self.s_prev2[freq])
+            self.totalpower[freq]+=sample*sample
+            if (self.totalpower[freq] == 0): 
+                self.totalpower[freq] = 1
+            freqs[freq] = power / self.totalpower[freq] / self.N[freq]
+        
+         return self.__get_number(freqs)
+    def additional_action(self):
+        # Perform additional action when the button is clicked
+        # Example for displaying a message box
+        
+
+        print("Additional action triggered!")
+        phone_folder_path = '/sdcard/MIUI/sound_recorder/call_rec'  #This PC\V21e 5G\Internal storage\Recordings\Record\Call #This PC\Redmi 6A\Internal shared storage\MIUI\sound_recorder\call_rec
+        # Paths for DTMF Tone analysis
+        adb_path = r'C:\\android\\adb.exe'
+        
+        input_folder = 'C:\\Yug\\dtmftone\\recording\\call_rec_mp3'
+        output_folder = 'C:\\Yug\\dtmftone\\wav'
+
+        # Specify the paths
+        adb_pull_command = [adb_path, 'pull', phone_folder_path, input_folder]
+        subprocess.run(adb_pull_command, check=True)
+
+        # Replace 'C:\\path\\to\\ffmpeg\\ffmpeg.exe' with the actual path to your FFmpeg executable
+        ffmpeg_path = r"C:\Program Files\ffmpeg-2024-02-26-git-a3ca4beeaa-essentials_build\bin\ffmpeg.exe"
+        input_folder = r"C:\\Yug\\dtmftone\\recording\\call_rec_mp3\\call_rec"
+
+        # Call the function to convert all MP3 files in the input folder to WAV in the output folder
+        self.convert_mp3_files_to_wav(input_folder, output_folder, ffmpeg_path)
+
+        # Specify the path to the folder containing WAV files
+        folder_path = 'C:\\Yug\\dtmftone\\wav'
+
+        # Create empty lists to store the results for DTMF Tone 1 and DTMF Tone 2
+        results_list_tone1 = []
+        results_list_tone2 = []
+        results_list_tone=[]
+
+
+        # Iterate over each file in the folder
+        for filename in os.listdir(folder_path):
+            if filename.endswith('.wav'):
+                # Construct the full path to the WAV file
+                wav_file_path = os.path.join(folder_path, filename)
+
+                # Load WAV file
+                wav = wave.open(wav_file_path, 'rb')  # Use 'rb' mode for reading binary files
+                (nchannels, sampwidth, framerate, nframes, comptype, compname) = wav.getparams()
+
+                frames = wav.readframes(nframes * nchannels)
+                wav.close()
+
+                # Convert wave file to an array of integers
+                frames = struct.unpack_from("%dH" % nframes * nchannels, frames)
+
+                # If stereo, get left/right
+                if nchannels == 2:
+                    left = [frames[i] for i in range(0, len(frames), 2)]
+                    right = [frames[i] for i in range(1, len(frames), 2)]
+                else:
+                    left = frames
+                    right = left
+
+                binsize = 400
+                # Split the bin into 4 to average out errors due to noise
+                binsize_split = 4
+
+                prevvalue = ""
+                prevcounter = 0
+
+                for i in range(0, len(left) - binsize, int(binsize / binsize_split)):
+                    goertzel = self.pygoertzel_dtmf(framerate)
+                    for j in left[i:i + binsize]:
+                        value = goertzel.run(j)
+
+                    if value == prevvalue:
+                        prevcounter += 1
+                        if prevcounter == 10:
+                            print(value)
+                            # Add the result to the corresponding list based on DTMF Tone
+                            if value == '1':
+                                results_list_tone1.append({'Filename': filename, 'DTMF Tone': value})
+                            elif value == '2':
+                                results_list_tone2.append({'Filename': filename, 'DTMF Tone': value})
+                            # Add similar elif conditions for other DTMF tones if needed
+                            elif value =="None":
+                                results_df_tone.append({'Filename': filename,'DTMF Tone': value})
+                    else:
+                        prevcounter = 0
+                        prevvalue = value
+
+        # Convert the lists of results to DataFrames
+        results_df_tone1 = pd.DataFrame(results_list_tone1)
+        results_df_tone2 = pd.DataFrame(results_list_tone2)
+        results_df_tone = pd.DataFrame(results_list_tone)
+
+        # Save the results to separate Excel sheets
+        excel_output_path_tone1 = r"C:\\Users\\Rahul Gowda\\OneDrive\\Documents\\DTMF_Tone1.xlsx"
+        results_df_tone1.to_excel(excel_output_path_tone1, index=False)
+        print(f"Results for DTMF Tone 1 saved to: {excel_output_path_tone1}")
+
+        excel_output_path_tone2 = r"C:\\Users\\Rahul Gowda\\OneDrive\\Documents\\DTMF_Tone2.xlsx"
+        results_df_tone2.to_excel(excel_output_path_tone2, index=False)
+        print(f"Results for DTMF Tone 2 saved to: {excel_output_path_tone2}")
+
+        excel_output_path_tone = r"C:\\Users\\Rahul Gowda\\OneDrive\\Documents\\DTMF_Tone3.xlsx"
+        results_df_tone.to_excel(excel_output_path_tone, index=False)
+        print(f"Results for none saved to: {excel_output_path_tone}")
+        messagebox.showinfo("Information", "Response are stored on respected excel sheet!!")
+    def redirect_to_dtmf1_excel(self):
+        # Add code to open the DTMF 1 tone Excel sheet
+        excel_path_tone1 = r"C:\\Users\\Rahul Gowda\\OneDrive\\Documents\\DTMF_Tone1.xlsx"
+        if os.path.exists(excel_path_tone1):
+            subprocess.Popen(["start", "excel", excel_path_tone1], shell=True)
+        else:
+            messagebox.showerror("Error", "DTMF 1 Tone Excel sheet not found!")
+
+    def redirect_to_dtmf1_excel1(self):
+        # Add code to open the DTMF 1 tone Excel sheet
+        excel_path_tone2 = r"C:\\Users\\Rahul Gowda\\OneDrive\\Documents\\DTMF_Tone2.xlsx"
+        if os.path.exists(excel_path_tone2):
+            subprocess.Popen(["start", "excel", excel_path_tone2], shell=True)
+        else:
+            messagebox.showerror("Error", "DTMF 2 Tone Excel sheet not found!")
+
+    
+
+if __name__ == "__main__":
+    root = tk.Tk()
+    app = PhoneCallMonitorGUI(root)
+    app.center_window()
+    root.mainloop()
