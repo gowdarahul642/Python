@@ -1,0 +1,107 @@
+import pandas as pd
+from selenium import webdriver
+from selenium.webdriver.common.by import By
+from selenium.webdriver.common.keys import Keys
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
+from selenium.common.exceptions import TimeoutException
+from bs4 import BeautifulSoup
+from time import sleep
+
+# Rest of your code...
+
+# Task 3.1: Write a function to extract the URLs of one page
+def GetURL():
+    page_source = BeautifulSoup(driver.page_source, 'html.parser')
+    urls = []
+    profile_cards = page_source.find_all('li', class_='search-result__occluded-item')
+    for card in profile_cards:
+        url_element = card.find('a', class_='app-aware-link')
+        url = url_element['href']
+        urls.append(url)
+    return urls
+
+# Rest of your code...
+
+# Configure Chrome options to ignore SSL certificate errors
+chrome_options = webdriver.ChromeOptions()
+chrome_options.add_argument('--ignore-certificate-errors')
+
+# Initialize the ChromeDriver with the configured options
+driver = webdriver.Chrome(options=chrome_options)
+
+# Open the browser to LinkedIn's login page
+driver.get('https://www.linkedin.com/')
+
+# Find the username and password input fields using CSS selectors
+username_field = WebDriverWait(driver, 80).until(
+    EC.presence_of_element_located((By.XPATH, '//input[@id="session_key"]'))
+)
+password_field = WebDriverWait(driver, 60).until(
+    EC.presence_of_element_located((By.XPATH, '//input[@id="session_password"]'))
+)
+
+# Enter the username and password
+username_field.send_keys(')
+password_field.send_keys('')
+
+# Submit the login form
+sign_in_button = WebDriverWait(driver, 60).until(
+    EC.element_to_be_clickable((By.XPATH, '//button[@type="submit"]'))
+)
+sign_in_button.click()
+
+# Wait for the page to load and the user to log in
+WebDriverWait(driver, 70).until(EC.url_contains("linkedin.com/feed/"))
+
+# Search for a name
+driver.get('https://www.linkedin.com/search/results/people/?keywords=ceo%20delhi&origin=CLUSTER_EXPANSION&sid=Aau')
+
+print('- Finish Task 2: Search for profiles')
+
+
+# Task 3: Scrape the URLs of the profiles
+
+# Task 3.1: Write a function to extract the URLs of one page
+def GetURL():
+    page_source = BeautifulSoup(driver.page_source, 'html.parser')
+    profiles = page_source.find_all('a', class_='app-aware-link')
+    all_profile_URL = []
+    for profile in profiles:
+        profile_URL = profile.get('href')
+        if profile_URL and "linkedin.com/in/" in profile_URL:
+            if profile_URL not in all_profile_URL:
+                all_profile_URL.append(profile_URL)
+    return all_profile_URL
+
+# Task 3.2: Navigate through many pages and extract the profile URLs of each page
+input_page = int(input('How many pages you want to scrape: '))
+URLs_all_page = []
+
+try:
+    for page in range(input_page):
+        URLs_one_page = GetURL()
+        sleep(2)
+        driver.execute_script('window.scrollTo(0, document.body.scrollHeight);')  # Scroll to the end of the page
+        sleep(3)
+        next_button = driver.find_element(By.CLASS_NAME, "artdeco-pagination__button--next")
+        driver.execute_script("arguments[0].click();", next_button)
+        try:
+            WebDriverWait(driver, 10).until(EC.staleness_of(next_button))  # Wait for the next page to load
+        except TimeoutException:
+            print("Timeout waiting for the next page to load.")
+        URLs_all_page += URLs_one_page
+        sleep(2)
+
+    print('- Finish Task 3: Scrape the URLs')
+
+    # Save the URLs to an Excel file
+    df = pd.DataFrame(URLs_all_page, columns=['Profile URL'])
+    output_file_path = r'C:\Users\ADMIN\OneDrive - Vidyalankar Polytechnic\Desktop\output.xlsx'
+    df.to_excel(output_file_path, index=False)
+    print("Data saved to Excel file.")
+except Exception as e:
+    print("An error occurred during scraping:", e)
+finally:
+    # Close the browser and end the program
+    driver.quit()
